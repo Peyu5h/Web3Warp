@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { counterAbi, getCounterAddress } from "@/lib/abi";
+import TransactionStatus from "@/components/TransactionStatus";
 
 export default function CounterPage() {
   const { address, isConnected } = useAccount();
@@ -63,17 +64,6 @@ export default function CounterPage() {
       hash,
       confirmations: 1,
     });
-
-  // Handle network switching
-  const handleSwitchNetwork = async () => {
-    try {
-      await switchChain({ chainId: sepolia.id });
-    } catch (err) {
-      setError(
-        `Failed to switch network: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    }
-  };
 
   // Increment counter
   const handleIncrement = async () => {
@@ -122,20 +112,6 @@ export default function CounterPage() {
     refetchCount();
   };
 
-  // Get transaction status
-  const getActionStatus = () => {
-    if (isPending) return "Submitting transaction...";
-    if (isConfirming) return "Confirming transaction...";
-    if (isConfirmed) {
-      // Refresh the count after confirmation
-      setTimeout(() => refetchCount(), 1000);
-      return "Transaction confirmed!";
-    }
-    return null;
-  };
-
-  const actionStatus = getActionStatus();
-
   return (
     <div className="flex h-screen w-full items-center justify-center">
       <div className="container mx-auto w-full max-w-lg">
@@ -160,32 +136,13 @@ export default function CounterPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="font-medium">Network:</span>
-                    {chainId === sepolia.id ? (
-                      <Badge
-                        variant="outline"
-                        className="bg-green-100 text-green-800"
-                      >
-                        Sepolia
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="bg-yellow-100 text-yellow-800"
-                      >
-                        Wrong Network
-                      </Badge>
-                    )}
-                  </div>
-
-                  {chainId !== sepolia.id && (
-                    <Button
+                    <Badge
                       variant="outline"
-                      size="sm"
-                      onClick={handleSwitchNetwork}
+                      className="bg-green-100 text-green-800"
                     >
-                      Switch to Sepolia
-                    </Button>
-                  )}
+                      Sepolia
+                    </Badge>
+                  </div>
                 </div>
 
                 <div>
@@ -248,30 +205,12 @@ export default function CounterPage() {
                 </Alert>
               )}
 
-              {actionStatus && (
-                <Alert
-                  className={`mt-4 ${isConfirmed ? "border-green-500/50 bg-green-500/10" : "bg-muted"}`}
-                >
-                  <AlertTitle>
-                    {isConfirmed ? "Success!" : "Processing"}
-                  </AlertTitle>
-                  <AlertDescription>
-                    {actionStatus}
-                    {hash && (
-                      <div className="mt-2">
-                        <a
-                          href={`https://sepolia.etherscan.io/tx/${hash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary-foreground flex items-center text-sm hover:underline"
-                        >
-                          View on Etherscan
-                        </a>
-                      </div>
-                    )}
-                  </AlertDescription>
-                </Alert>
-              )}
+              <TransactionStatus
+                hash={hash}
+                isPending={isPending}
+                isConfirming={isConfirming}
+                isConfirmed={isConfirmed}
+              />
             </>
           </CardContent>
 

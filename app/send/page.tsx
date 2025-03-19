@@ -32,6 +32,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import TransactionStatus from "@/components/TransactionStatus";
 
 export default function SendTransaction() {
   const { address, isConnected } = useAccount();
@@ -163,36 +164,18 @@ export default function SendTransaction() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">Network:</span>
-                      {chainId === sepolia.id ? (
-                        <Badge
-                          variant="outline"
-                          className="bg-green-100 text-green-800"
-                        >
-                          Sepolia
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="bg-yellow-100 text-yellow-800"
-                        >
-                          Wrong Network
-                        </Badge>
-                      )}
-                    </div>
 
-                    {chainId !== sepolia.id && (
-                      <Button
+                      <Badge
                         variant="outline"
-                        size="sm"
-                        onClick={handleSwitchNetwork}
+                        className="bg-green-100 text-green-800"
                       >
-                        Switch to Sepolia
-                      </Button>
-                    )}
+                        Sepolia
+                      </Badge>
+                    </div>
                   </div>
 
                   <div>
-                    <span className="font-medium">Address:</span>
+                    <span className="text-sm font-medium">Address:</span>
                     <span className="text-muted-foreground ml-2 text-sm">
                       {address}
                     </span>
@@ -268,59 +251,13 @@ export default function SendTransaction() {
                   </div>
                 </form>
 
-                {error && (
-                  <Alert variant="destructive" className="mt-4">
-                    <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                {hash && (
-                  <div className="bg-muted mt-4 space-y-3 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">Status:</span>
-                      <Badge
-                        className={
-                          isConfirmed
-                            ? "bg-green-100 text-green-800"
-                            : "bg-blue-100 text-blue-800"
-                        }
-                      >
-                        {getTxStatus()}
-                      </Badge>
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">Transaction:</span>
-                        <a
-                          href={`https://sepolia.etherscan.io/tx/${hash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary flex items-center hover:underline"
-                        >
-                          View on Etherscan
-                          <ExternalLink className="ml-1 h-3 w-3" />
-                        </a>
-                      </div>
-                      <p className="text-muted-foreground text-xs break-all">
-                        {hash}
-                      </p>
-                    </div>
-
-                    {isConfirming && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => refetchReceipt()}
-                      >
-                        <RefreshCw className="mr-2 h-3 w-3" />
-                        Check Status
-                      </Button>
-                    )}
-                  </div>
-                )}
+                <TransactionStatus
+                  hash={hash}
+                  isPending={isPending}
+                  isConfirming={isConfirming}
+                  isConfirmed={isConfirmed}
+                  error={error}
+                />
               </>
             ) : (
               <div className="flex flex-col items-center justify-center py-8 text-center">
