@@ -1,0 +1,20 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Always use NativeWind for styling (Tailwind CSS for React Native)
+Use react-native-reusables components (https://rnr-docs.vercel.app/) as the native equivalent of shadcn
+Follow consistent component composition patterns
+
+Use the same state management patterns as web applications
+Maintain consistent API response handling:
+
+  {
+    success: boolean,
+    data?: T,
+    error?: Array<{ message: string, code?: string, path?: string[] }>
+  }
+
+Use React Query for server state with proper offline support
+Implement proper loading and error states for mobile UX

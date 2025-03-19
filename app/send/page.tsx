@@ -32,7 +32,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Separator } from "@/components/ui/separator";
 
 export default function SendTransaction() {
   const { address, isConnected } = useAccount();
@@ -142,12 +141,11 @@ export default function SendTransaction() {
         <div className="flex items-center justify-between">
           <Link
             href="/"
-            className="text-muted-foreground hover:text-primary flex items-center"
+            className="text -muted-foreground hover:text-primary mb-2 flex items-center"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Home
           </Link>
-          <w3m-button />
         </div>
 
         <Card className="mb-6">

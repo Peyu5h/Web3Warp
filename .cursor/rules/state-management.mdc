@@ -1,0 +1,105 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# State Management Standards
+
+## Atomic State Pattern
+
+Use our established atomic state pattern with `createGlobalState` from `~/store/index.ts`:
+
+```typescript
+// Simple atomic states
+export const useCount = createGlobalState("count", { value: 0 });
+export const useTheme = createGlobalState("theme", { value: "light" }, { persist: true });
+```
+
+For derived state, use `createDerivedState`:
+
+```typescript
+export const useCartTotal = createDerivedState<CartState, number>(
+  useCartStore,
+  (state) => state.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+);
+```
+
+## State Organization
+
+- Keep state atoms small and focused on specific concerns
+- Group related state in feature-specific files
+- Use the pattern:
+- `simpleStore.ts` - For basic atomic states
+- `complexStore.ts` - For more complex states with derived values
+- `featureStore.ts` - For feature-specific state
+
+## Server State with React Query
+
+Use TanStack Query for all API data fetching:
+
+```typescript
+const { data, isLoading, error } = useQuery({
+  queryKey: ["products"],
+  queryFn: async () => {
+    const response = await api.get<Product[]>("/api/products");
+    return response.success ? response.data : [];
+  }
+});
+```
+
+For mutations, follow this pattern:
+
+```typescript
+const mutation = useMutation({
+  mutationFn: async (values: CreateProductInput) => {
+    return api.post<Product>("api/products/add", values);
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["products"] });
+    toast("Product created successfully");
+  }
+});
+```
+
+## Loading & Error States
+
+Always handle loading, error, and success states explicitly:
+
+```tsx
+{isLoading && <Loader />}
+{error && <ErrorMessage message={error.message} />}
+{data && <DataDisplay data={data} />}
+```
+
+## Form State
+
+- Use Formik for form state management
+- Use Yup for validation schemas
+- Implement consistent error handling
+
+Example pattern:
+
+```typescript
+const formik = useFormik({
+  initialValues: {
+    name: "",
+    price: 0,
+  },
+  validationSchema: productSchema,
+  onSubmit: (values) => {
+    mutation.mutate(values);
+  },
+});
+```
+
+## Persistence
+
+For persisted state, use the persist option in createGlobalState:
+
+```typescript
+export const useSettings = createGlobalState(
+  "settings", 
+  { theme: "light", fontSize: "medium" }, 
+  { persist: true }
+);
+```

@@ -1,0 +1,45 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+## TypeScript & React
+- Use functional components with hooks
+- TypeScript with strict typing, no `any`
+- Use `~/*` for imports (not `@/*`)
+- Add JSDoc comments for complex functions
+- Use "use client" directive when needed
+- Use "&apos;" instead of using '(apostrophy) in text 
+
+## Error Handling
+- Try/catch for async operations
+- Use toast notifications for user errors
+- Log errors with context
+- Return appropriate HTTP status codes
+
+## Response Standards
+Always use the utility functions from src/app/api/[[...route]]/utils/response.ts:
+
+success(data) - For successful responses
+err(message, path) - For error responses
+validationErr(error) - For validation errors
+
+## API Standards
+All API responses follow this structure:
+{
+  success: boolean,
+  data?: T,
+  error?: Array<{ message: string, code?: string, path?: string[] }>
+}
+  ```
+
+## Forms
+- Formik + Yup validation
+- Extract reusable form hooks
+- Implement proper field validation
+- Handle submission states
+
+## Performance
+- Implement proper code splitting
+- images:use nextjs <Image> component with width & height instead of html image
+- Implement proper caching strategies

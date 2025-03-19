@@ -1,0 +1,9 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+For web3 use ethereum with sepolia test net as priority 1
+always try to use wagmi hooks instead of raw ether or veim query to interact with contract
+Always refer the latest docs based on the version of the packages installed 
+Use veim for interacting with contract if wagmi hook isn't applicable for that case

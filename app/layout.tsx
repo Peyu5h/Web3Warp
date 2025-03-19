@@ -1,21 +1,26 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import ContextProvider from "@/lib/auth/context";
+import { headers } from "next/headers";
+import Web3Provider from "@/lib/middleware/Web3Provider";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
-  title: "dApp test",
-  description: "",
+  title: "Web3Wrap",
+  description: "Web3Wrap",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookies = (await headers()).get("cookie");
+
   return (
-    <html lang="en">
-      <body className={`dark antialiased`}>
-        <ContextProvider cookies="{cookies}">{children}</ContextProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body className="dark bg-background min-h-screen antialiased">
+        <Web3Provider cookies="{cookies}">{children}</Web3Provider>
+        <Toaster />
       </body>
     </html>
   );

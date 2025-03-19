@@ -1,0 +1,15 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+When designing or implementing UI components, use shadcn components as the foundation.
+
+Reference these design systems for consistency:
+https://nyxbui.design/
+https://21st.dev/?tab=components
+Always prefer composition over inheritance when building components.
+Styling should be done with Tailwind CSS using:
+The cn() utility for conditional class merging (for nyxbui components the code might have ny, make it cn which is same)
+class-variance-authority (cva) for component variants
+
