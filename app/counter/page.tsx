@@ -19,18 +19,17 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
-import { counterAbi, getCounterAddress } from "@/lib/abi";
-import TransactionStatus from "@/components/TransactionStatus";
+} from "~/components/ui/card";
+import { Button } from "~/components/ui/button";
+import { Badge } from "~/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
+import { Skeleton } from "~/components/ui/skeleton";
+import { counterAbi, getCounterAddress } from "~/lib/abi";
+import TransactionStatus from "~/components/TransactionStatus";
 
 export default function CounterPage() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
-  const { switchChain } = useSwitchChain();
   const [error, setError] = useState("");
 
   // Read the counter value
