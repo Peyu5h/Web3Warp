@@ -1,13 +1,13 @@
 "use client";
 
-import { wagmiAdapter, projectId, config } from "@/lib/config";
+import { wagmiAdapter, projectId, config } from "~/lib/config";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createAppKit } from "@reown/appkit/react";
 
 import { arbitrum, mainnet, sepolia } from "@reown/appkit/networks";
 import React, { useState, useEffect, type ReactNode } from "react";
 import { cookieToInitialState, WagmiProvider, type Config } from "wagmi";
-import { NetworkProvider } from "@/lib/middleware/NetworkProvider";
+import { NetworkProvider } from "./NetworkProvider";
 
 function Web3Provider({
   children,
@@ -32,7 +32,7 @@ function Web3Provider({
   const modal = createAppKit({
     adapters: [wagmiAdapter],
     projectId,
-    networks: [sepolia],
+    networks: [sepolia, mainnet],
     metadata: metadata,
     features: {
       analytics: true,
@@ -44,14 +44,14 @@ function Web3Provider({
   });
 
   return (
-    // <NetworkProvider>
     <WagmiProvider
       config={wagmiAdapter.wagmiConfig as Config}
       initialState={initialState}
     >
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <NetworkProvider>{children}</NetworkProvider>
+      </QueryClientProvider>
     </WagmiProvider>
-    // </NetworkProvider>
   );
 }
 

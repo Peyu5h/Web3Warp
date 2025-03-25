@@ -1,8 +1,8 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "~/components/ui/button";
 import Link from "next/link";
-import React from "react";
+import React, { useState } from "react";
 import { useAccount } from "wagmi";
 import {
   Card,
@@ -10,24 +10,30 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "~/components/ui/card";
+import { useWalletAuth } from "~/lib/hooks/useWalletAuth";
+import { RegisterModal } from "~/components/auth/RegisterModal";
 
 export default function MainPage() {
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
+  const { user, isLoading, registerUser } = useWalletAuth();
+  const [showRegister, setShowRegister] = useState(false);
+
+  React.useEffect(() => {
+    if (isConnected && !isLoading && !user) {
+      setShowRegister(true);
+    }
+  }, [isConnected, isLoading, user]);
+  console.log(user);
   return (
     <div className="container mx-auto">
       <div className="flex h-screen flex-col items-center justify-center">
-        {/* <div className="space-y-2 text-center">
-          <h1 className="text-4xl font-bold"></h1>
-          <p className="text-muted-foreground text-lg"></p>
-        </div> */}
-
         <w3m-button />
 
         {isConnected ? (
           <div className="w-full max-w-5xl space-y-8">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold"></h2>
+              <h2 className="text-2xl font-bold">Welcome {user?.name}</h2>
               <w3m-network-button />
             </div>
 
@@ -120,6 +126,11 @@ export default function MainPage() {
           </Card>
         )}
       </div>
+      <RegisterModal
+        isOpen={showRegister}
+        onClose={() => setShowRegister(false)}
+        onSubmit={registerUser}
+      />
     </div>
   );
 }

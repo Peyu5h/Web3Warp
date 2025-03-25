@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount, useChainId, useSwitchChain } from "wagmi";
 import { sepolia } from "viem/chains";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
+import { Button } from "~/components/ui/button";
 
 interface NetworkProviderProps {
   children: React.ReactNode;
-  enforceNetwork?: boolean; // Allow some pages to bypass network check
+  enforceNetwork?: boolean;
 }
 
 export function NetworkProvider({
@@ -26,13 +26,11 @@ export function NetworkProvider({
   const isCorrectNetwork = chainId === sepolia.id;
 
   useEffect(() => {
-    // Only enforce network check if wallet is connected and enforcement is enabled
     if (!isConnected || !enforceNetwork) {
       setIsLoading(false);
       return;
     }
 
-    // If on wrong network, show network switch prompt
     if (!isCorrectNetwork) {
       setIsLoading(false);
     } else {
@@ -52,14 +50,9 @@ export function NetworkProvider({
     }
   };
 
-  if (isLoading) {
-    return <div>Loading...</div>; // Consider using a proper loading component
-  }
-
-  // If network check is enforced and we're on wrong network, show switch prompt
   if (enforceNetwork && isConnected && !isCorrectNetwork) {
     return (
-      <div className="container mx-auto max-w-2xl p-4">
+      <div className="container mx-auto flex h-screen max-w-2xl flex-col items-center justify-center p-4">
         <Alert variant="destructive">
           <AlertTitle>Wrong Network</AlertTitle>
           <AlertDescription className="mt-2">
