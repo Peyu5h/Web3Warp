@@ -13,29 +13,16 @@ import {
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import {
-  useAccount,
-  useReadContract,
-  useWriteContract,
-  useWaitForTransactionReceipt,
-  useBalance,
-} from "wagmi";
+import { useAccount, useReadContract, useBalance } from "wagmi";
 import { parseEther, formatEther, isAddress } from "viem";
 import { erc20Abi, getErc20Address } from "~/lib/abi/erc20";
 import { sepolia } from "viem/chains";
 import { toast } from "sonner";
+import { useTransaction } from "~/lib/hooks/useTransaction";
 
 export default function TokenPage() {
   const { isConnected, address } = useAccount();
   const [activeTab, setActiveTab] = useState("interact");
-  const [debugMode, setDebugMode] = useState(false);
-
-  // Get the correct token address based on chain
-  const chainId = sepolia.id;
-  const erc20Address = getErc20Address(chainId);
-
-  // State variables
-  const [tokenAddress, setTokenAddress] = useState(erc20Address);
   const [recipient, setRecipient] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
   const [tokenInfo, setTokenInfo] = useState<{
@@ -46,40 +33,34 @@ export default function TokenPage() {
     totalSupply: string;
   } | null>(null);
 
-  // Contract write hooks
+  const chainId = sepolia.id;
+  const tokenAddress = getErc20Address(chainId);
+
   const {
-    data: transferHash,
-    isPending: isTransferring,
-    writeContract,
-    error: writeError,
-  } = useWriteContract();
-
-  // Transaction receipt hooks
-  const { isLoading: isTransferLoading, isSuccess: isTransferSuccess } =
-    useWaitForTransactionReceipt({ hash: transferHash });
-
-  // Read account's ETH balance
-  const { data: ethBalance } = useBalance({
-    address,
+    write: writeContract,
+    isLoading: isTransactionLoading,
+    isSuccess: isTransactionSuccess,
+  } = useTransaction({
+    successMessage: "Transaction confirmed on the blockchain",
+    onSuccess: () => {
+      // Refresh balances after success
+      setTimeout(() => {
+        if (address) {
+          refetchBalance();
+          refetchTotalSupply();
+        }
+        setRecipient("");
+        setTransferAmount("");
+      }, 1000);
+    },
   });
 
-  // Read token info
+  const { data: ethBalance } = useBalance({ address });
+
   const { data: tokenName, refetch: refetchName } = useReadContract({
     address: tokenAddress as `0x${string}`,
     abi: erc20Abi,
     functionName: "name",
-  });
-
-  const { data: tokenSymbol, refetch: refetchSymbol } = useReadContract({
-    address: tokenAddress as `0x${string}`,
-    abi: erc20Abi,
-    functionName: "symbol",
-  });
-
-  const { data: tokenDecimals, refetch: refetchDecimals } = useReadContract({
-    address: tokenAddress as `0x${string}`,
-    abi: erc20Abi,
-    functionName: "decimals",
   });
 
   const { data: tokenBalance, refetch: refetchBalance } = useReadContract({
@@ -95,138 +76,37 @@ export default function TokenPage() {
     functionName: "totalSupply",
   });
 
-  const { data: tokenOwner, refetch: refetchOwner } = useReadContract({
+  const { data: tokenOwner } = useReadContract({
     address: tokenAddress as `0x${string}`,
     abi: erc20Abi,
     functionName: "owner",
   });
 
-  // Update the isOwner check to be more reliable
+  useEffect(() => {
+    if (tokenName && tokenBalance !== undefined && totalSupply !== undefined) {
+      setTokenInfo({
+        name: tokenName as string,
+        symbol: "SYNK",
+        decimals: 18,
+        balance: tokenBalance ? formatEther(tokenBalance as bigint) : "0",
+        totalSupply: totalSupply ? formatEther(totalSupply as bigint) : "0",
+      });
+    }
+  }, [tokenName, tokenBalance, totalSupply]);
+
+  useEffect(() => {
+    if (isConnected && address) {
+      refetchName();
+      refetchBalance();
+      refetchTotalSupply();
+    }
+  }, [isConnected, address, refetchName, refetchBalance, refetchTotalSupply]);
+
   const isOwner =
     address &&
     tokenOwner &&
     address.toLowerCase() === tokenOwner.toString().toLowerCase();
 
-  // Load deployed token info on initial render
-  useEffect(() => {
-    if (isConnected && tokenAddress) {
-      handleCheckToken();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, address, tokenAddress]);
-
-  // Handle check token info
-  const handleCheckToken = async () => {
-    if (!tokenAddress || !isAddress(tokenAddress)) {
-      toast.error("Please enter a valid token address");
-      return;
-    }
-
-    try {
-      // Force cache invalidation by requesting a fresh fetch
-      await Promise.all([
-        refetchName(),
-        refetchSymbol(),
-        refetchDecimals(),
-        address ? refetchBalance() : Promise.resolve(),
-        refetchTotalSupply(),
-        refetchOwner(),
-      ]);
-
-      // Add a small delay to ensure the data is refreshed
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      setTokenInfo({
-        name: tokenName as string | undefined,
-        symbol: tokenSymbol as string | undefined,
-        decimals: tokenDecimals as number | undefined,
-        balance: tokenBalance ? formatEther(tokenBalance as bigint) : "0",
-        totalSupply: totalSupply ? formatEther(totalSupply as bigint) : "0",
-      });
-
-      toast.success("Token information refreshed successfully");
-    } catch (error) {
-      console.error("Error loading token info:", error);
-      toast.error(
-        "Failed to load token info. Check that the address is a valid ERC20 token.",
-      );
-    }
-  };
-
-  // Add automatic refresh interval
-  useEffect(() => {
-    if (isConnected && address) {
-      // Initial load
-      handleCheckToken();
-
-      // Set up refresh interval every 10 seconds
-      const intervalId = setInterval(() => {
-        console.log("Auto-refreshing token balance...");
-        refetchBalance();
-        refetchTotalSupply();
-      }, 10000);
-
-      return () => clearInterval(intervalId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, address]);
-
-  // Ensure quick refresh after transactions
-  useEffect(() => {
-    if (isTransferSuccess) {
-      toast.success("Transaction completed successfully");
-
-      // Immediate check to update UI
-      setTimeout(() => {
-        if (address) {
-          refetchBalance();
-          refetchTotalSupply();
-
-          // Second refresh after a longer delay to ensure blockchain data is updated
-          setTimeout(() => {
-            handleCheckToken();
-          }, 3000);
-        }
-      }, 1000);
-
-      // Clear form
-      setRecipient("");
-      setTransferAmount("");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTransferSuccess]);
-
-  // Update the handleMint function to properly handle decimals
-  const handleMint = () => {
-    if (!isOwner) {
-      toast.error("Only the token owner can mint new tokens");
-      return;
-    }
-
-    if (!recipient || !transferAmount || !isAddress(recipient)) {
-      toast.error("Please enter a valid recipient address and amount");
-      return;
-    }
-
-    console.log("Minting tokens to:", recipient, "amount:", transferAmount);
-
-    try {
-      writeContract({
-        address: tokenAddress as `0x${string}`,
-        abi: erc20Abi,
-        functionName: "mint",
-        args: [recipient as `0x${string}`, parseEther(transferAmount)],
-      });
-    } catch (error) {
-      console.error("Mint error:", error);
-      toast.error(
-        "Failed to mint tokens: " +
-          (error instanceof Error ? error.message : String(error)),
-      );
-    }
-  };
-
-  // Handle token transfer
   const handleTransfer = () => {
     if (!recipient || !transferAmount || !isAddress(recipient)) {
       toast.error("Please enter a valid recipient address and amount");
@@ -238,7 +118,6 @@ export default function TokenPage() {
       return;
     }
 
-    // Check if user has enough balance
     if (
       tokenInfo &&
       parseFloat(tokenInfo.balance) < parseFloat(transferAmount)
@@ -257,53 +136,84 @@ export default function TokenPage() {
     });
   };
 
+  const handleMint = () => {
+    if (!isOwner) {
+      toast.error("Only the token owner can mint new tokens");
+      return;
+    }
+
+    if (!recipient || !transferAmount || !isAddress(recipient)) {
+      toast.error("Please enter a valid recipient address and amount");
+      return;
+    }
+
+    writeContract({
+      address: tokenAddress as `0x${string}`,
+      abi: erc20Abi,
+      functionName: "mint",
+      args: [recipient as `0x${string}`, parseEther(transferAmount)],
+    });
+  };
+
+  const [products] = useState([
+    {
+      id: 1,
+      name: "Premium Feature",
+      description: "Unlock all premium features",
+      price: 500,
+      image: "🎯",
+    },
+    {
+      id: 2,
+      name: "VIP Membership",
+      description: "Get exclusive VIP benefits",
+      price: 25000,
+      image: "👑",
+    },
+    {
+      id: 3,
+      name: "Basic Feature",
+      description: "Unlock basic features",
+      price: 5,
+      image: "✨",
+    },
+  ]);
+
+  const SHOP_WALLET_ADDRESS =
+    "0xD7f6b69d601A84F19971A91f25c2224A4e29a6ed" as `0x${string}`;
+
+  const handlePurchase = async (productId: number) => {
+    if (!tokenInfo) {
+      toast.error("Token information not available");
+      return;
+    }
+
+    const product = products.find((p) => p.id === productId);
+    if (!product) {
+      toast.error("Product not found");
+      return;
+    }
+
+    const userBalance = parseFloat(tokenInfo.balance);
+    if (userBalance < product.price) {
+      toast.error(
+        `Insufficient balance. You need ${product.price} SYNK but have ${userBalance} SYNK`,
+      );
+      return;
+    }
+
+    writeContract({
+      address: tokenAddress as `0x${string}`,
+      abi: erc20Abi,
+      functionName: "transfer",
+      args: [SHOP_WALLET_ADDRESS, parseEther(product.price.toString())],
+    });
+  };
+
   return (
     <div className="container mx-auto max-w-2xl px-4 py-10">
       <div className="flex flex-col space-y-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">SYNK Token</h1>
-          <Button
-            variant="ghost"
-            onClick={() => setDebugMode(!debugMode)}
-            size="sm"
-          >
-            {debugMode ? "Hide Debug" : "Debug"}
-          </Button>
-        </div>
-
-        <p className="text-muted-foreground">
-          Interact with the deployed SYNK token on Sepolia testnet
-        </p>
-
-        {debugMode && (
-          <Card className="bg-slate-50 dark:bg-slate-900">
-            <CardHeader>
-              <CardTitle>Debug Information</CardTitle>
-            </CardHeader>
-            <CardContent className="font-mono text-xs">
-              <div className="space-y-2">
-                <p>Your address: {address || "Not connected"}</p>
-                <p>
-                  Token owner: {tokenOwner ? tokenOwner.toString() : "Unknown"}
-                </p>
-                <p>Is owner: {isOwner ? "Yes" : "No"}</p>
-                <p>
-                  Address comparison: {address?.toLowerCase()} vs{" "}
-                  {tokenOwner?.toString().toLowerCase()}
-                </p>
-                <p>
-                  Token ABI mint function:{" "}
-                  {JSON.stringify(erc20Abi.find((x: any) => x.name === "mint"))}
-                </p>
-                {writeError && (
-                  <div className="mt-2 rounded bg-red-100 p-2 text-red-800">
-                    <p>Last error: {writeError.message}</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <h1 className="text-3xl font-bold">SYNK Token</h1>
 
         {isConnected ? (
           <Tabs
@@ -311,9 +221,10 @@ export default function TokenPage() {
             onValueChange={setActiveTab}
             className="w-full"
           >
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="interact">Token Info</TabsTrigger>
               <TabsTrigger value="transfer">Transfer & Mint</TabsTrigger>
+              <TabsTrigger value="shop">Shop</TabsTrigger>
             </TabsList>
 
             <TabsContent value="interact" className="mt-4">
@@ -326,33 +237,6 @@ export default function TokenPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="tokenAddress">Token Address</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="tokenAddress"
-                          value={tokenAddress}
-                          className="font-mono text-xs"
-                          readOnly
-                        />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="whitespace-nowrap"
-                          onClick={() => {
-                            navigator.clipboard.writeText(tokenAddress);
-                            toast.success("Address copied to clipboard");
-                          }}
-                        >
-                          Copy
-                        </Button>
-                      </div>
-                    </div>
-
-                    <Button onClick={handleCheckToken}>
-                      Refresh Token Info
-                    </Button>
-
                     <div className="mt-4 rounded border p-4">
                       <h3 className="mb-2 text-sm font-medium">Token Info</h3>
                       {tokenInfo ? (
@@ -366,27 +250,13 @@ export default function TokenPage() {
                             {tokenInfo.symbol}
                           </p>
                           <p>
-                            <span className="font-medium">Decimals:</span>{" "}
-                            {tokenInfo.decimals?.toString()}
-                          </p>
-                          <p>
                             <span className="font-medium">Your Balance:</span>{" "}
                             {tokenInfo.balance} {tokenInfo.symbol}
                           </p>
-                          <div className="flex items-center justify-between">
+                          <p>
                             <span className="font-medium">Total Supply:</span>{" "}
-                            <span className="flex items-center gap-2">
-                              {tokenInfo.totalSupply} {tokenInfo.symbol}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-6 px-2 py-0"
-                                onClick={handleCheckToken}
-                              >
-                                Refresh
-                              </Button>
-                            </span>
-                          </div>
+                            {tokenInfo.totalSupply} {tokenInfo.symbol}
+                          </p>
                           <p>
                             <span className="font-medium">Owner:</span>{" "}
                             {isOwner ? (
@@ -405,15 +275,6 @@ export default function TokenPage() {
                       )}
                     </div>
 
-                    <div className="flex justify-center">
-                      <Button
-                        className="mt-2 bg-blue-600 hover:bg-blue-700"
-                        onClick={handleCheckToken}
-                      >
-                        Force Refresh Balances
-                      </Button>
-                    </div>
-
                     <div className="mt-2 rounded border p-4">
                       <h3 className="mb-2 text-sm font-medium">
                         Your ETH Balance
@@ -430,30 +291,9 @@ export default function TokenPage() {
                           "Loading..."
                         )}
                       </p>
-                      <p className="text-muted-foreground mt-1 text-xs">
-                        You need ETH to pay for transaction fees
-                      </p>
                     </div>
                   </div>
                 </CardContent>
-                <CardFooter className="flex justify-between border-t pt-4">
-                  <a
-                    href={`https://sepolia.etherscan.io/address/${tokenAddress}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-500 hover:underline"
-                  >
-                    View on Etherscan
-                  </a>
-                  <a
-                    href="https://sepoliafaucet.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-500 hover:underline"
-                  >
-                    Get Sepolia ETH
-                  </a>
-                </CardFooter>
               </Card>
             </TabsContent>
 
@@ -473,9 +313,7 @@ export default function TokenPage() {
                         id="recipient"
                         placeholder="0x..."
                         value={recipient}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          setRecipient(e.target.value)
-                        }
+                        onChange={(e) => setRecipient(e.target.value)}
                       />
                       {recipient && !isAddress(recipient) && (
                         <p className="mt-1 text-xs text-red-500">
@@ -488,66 +326,98 @@ export default function TokenPage() {
                       <Input
                         id="amount"
                         type="number"
-                        placeholder="0.0"
+                        placeholder="12345"
                         value={transferAmount}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          setTransferAmount(e.target.value)
-                        }
+                        onChange={(e) => setTransferAmount(e.target.value)}
                       />
                     </div>
                     <Button
                       className="w-full"
                       onClick={handleTransfer}
                       disabled={
-                        isTransferring ||
-                        isTransferLoading ||
+                        isTransactionLoading ||
                         !recipient ||
                         !transferAmount ||
                         !isAddress(recipient)
                       }
                     >
-                      {isTransferring || isTransferLoading
+                      {isTransactionLoading
                         ? "Processing..."
                         : "Transfer Tokens"}
                     </Button>
 
-                    {tokenInfo && (
-                      <p className="text-muted-foreground text-center text-sm">
-                        Your current balance: {tokenInfo.balance}{" "}
-                        {tokenInfo.symbol}
-                      </p>
-                    )}
-
-                    {isOwner ? (
-                      <div className="mt-6 border-t pt-6">
-                        <h3 className="mb-4 font-medium">Owner Functions</h3>
-                        <p className="mb-4 text-sm">
-                          As the token owner, you can mint new tokens to any
-                          address.
-                        </p>
-                        <Button
-                          className="w-full bg-green-600 hover:bg-green-700"
-                          onClick={handleMint}
-                          disabled={
-                            isTransferring ||
-                            isTransferLoading ||
-                            !recipient ||
-                            !transferAmount ||
-                            !isAddress(recipient)
-                          }
-                        >
-                          Mint Tokens to Address
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="mt-6 border-t pt-6">
-                        <p className="text-muted-foreground text-sm">
-                          Owner functions are only available to the token owner:{" "}
-                          {tokenOwner ? tokenOwner.toString() : "Unknown"}
-                        </p>
-                      </div>
+                    {isOwner && (
+                      <Button
+                        className="w-full bg-green-600 hover:bg-green-700"
+                        onClick={handleMint}
+                        disabled={
+                          isTransactionLoading ||
+                          !recipient ||
+                          !transferAmount ||
+                          !isAddress(recipient)
+                        }
+                      >
+                        Mint Tokens to Address
+                      </Button>
                     )}
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="shop" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>SYNK Shop</CardTitle>
+                  <CardDescription>
+                    Purchase products using your SYNK tokens
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    {products.map((product) => (
+                      <Card key={product.id} className="flex flex-col">
+                        <CardHeader>
+                          <div className="mb-2 text-4xl">{product.image}</div>
+                          <CardTitle className="text-lg">
+                            {product.name}
+                          </CardTitle>
+                          <CardDescription>
+                            {product.description}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex-grow">
+                          <div className="text-primary text-2xl font-bold">
+                            {product.price} SYNK
+                          </div>
+                        </CardContent>
+                        <CardFooter>
+                          <Button
+                            className="w-full"
+                            onClick={() => handlePurchase(product.id)}
+                            disabled={
+                              isTransactionLoading ||
+                              !tokenInfo ||
+                              parseFloat(tokenInfo.balance) < product.price
+                            }
+                          >
+                            {isTransactionLoading
+                              ? "Processing..."
+                              : "Purchase"}
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {tokenInfo && (
+                    <div className="mt-4 rounded border p-4">
+                      <h3 className="mb-2 text-sm font-medium">Your Balance</h3>
+                      <p className="text-lg font-bold">
+                        {tokenInfo.balance} {tokenInfo.symbol}
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -564,38 +434,6 @@ export default function TokenPage() {
             </CardContent>
           </Card>
         )}
-
-        <div className="bg-muted rounded-lg p-4">
-          <h3 className="mb-2 font-medium">SYNK Token Contract:</h3>
-          <p className="mb-2 text-xs break-all">{erc20Address}</p>
-          <p className="mb-4">
-            <a
-              href={`https://sepolia.etherscan.io/address/${erc20Address}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-blue-500 hover:underline"
-            >
-              View on Etherscan
-            </a>
-          </p>
-          <h3 className="mb-2 font-medium">How to use:</h3>
-          <ul className="list-disc space-y-1 pl-5">
-            <li>
-              Get Sepolia ETH from{" "}
-              <a
-                href="https://sepoliafaucet.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 hover:underline"
-              >
-                Sepolia Faucet
-              </a>
-            </li>
-            <li>View your token balance and total supply</li>
-            <li>If you&apos;re the owner, you can mint new tokens</li>
-            <li>Transfer tokens to other addresses</li>
-          </ul>
-        </div>
       </div>
     </div>
   );
