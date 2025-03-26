@@ -13,20 +13,30 @@ async function main() {
 
   // ----------------------------------------------------
 
-  const [deployer] = await hre.ethers.getSigners();
-  console.log("Deploying contracts with the account:", deployer.address);
+  // const [deployer] = await hre.ethers.getSigners();
+  // console.log("Deploying contracts with the account:", deployer.address);
 
-  const Erc20Token = await hre.ethers.getContractFactory("Erc20Token");
-  const token = await Erc20Token.deploy(
-    "SYNK Coin", // name
-    "SYNK", // symbol
-    "1000000", // initialSupply
-    deployer.address, // initialOwner
-  );
+  // const Erc20Token = await hre.ethers.getContractFactory("Erc20Token");
+  // const token = await Erc20Token.deploy(
+  //   "SYNK Coin", // name
+  //   "SYNK", // symbol
+  //   "1000000", // initialSupply
+  //   deployer.address, // initialOwner
+  // );
 
-  await token.waitForDeployment();
-  const tokenAddress = await token.getAddress();
-  console.log("Token deployed to:", tokenAddress);
+  // await token.waitForDeployment();
+  // const tokenAddress = await token.getAddress();
+  // console.log("Token deployed to:", tokenAddress);
+
+  // ----------------------------------------------------
+
+  // Deploy NFT Factory contract
+  const NFTFactory = await hre.ethers.getContractFactory("NFTFactory");
+  const nftFactory = await NFTFactory.deploy();
+
+  await nftFactory.waitForDeployment();
+  const nftFactoryAddress = await nftFactory.getAddress();
+  console.log("NFTFactory deployed to:", nftFactoryAddress);
 }
 
 main()

@@ -72,11 +72,6 @@ export default function MainPage() {
                   <CardDescription>DeFi and NFT applications</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow space-y-3">
-                  <Link href="/staking" className="block w-full">
-                    <Button variant="outline" className="w-full justify-start">
-                      Token Staking
-                    </Button>
-                  </Link>
                   <Link href="/nft" className="block w-full">
                     <Button variant="outline" className="w-full justify-start">
                       NFT Collection
@@ -85,6 +80,11 @@ export default function MainPage() {
                   <Link href="/escrow" className="block w-full">
                     <Button variant="outline" className="w-full justify-start">
                       Escrow Service
+                    </Button>
+                  </Link>
+                  <Link href="/staking" className="block w-full">
+                    <Button variant="outline" className="w-full justify-start">
+                      Token Staking
                     </Button>
                   </Link>
                 </CardContent>

@@ -101,14 +101,11 @@ export function useTransaction(options: UseTransactionOptions = {}) {
     // Handle write contract errors
     if (isWriteError && writeError) {
       console.log("Transaction write error:", writeError);
-      if (useRegularToastForErrors) {
-        toast.error(writeError?.message || "Failed to submit transaction");
-      } else {
-        showTransactionToast.error(
-          "Transaction failed",
-          writeError?.message || "Failed to submit transaction",
-        );
-      }
+
+      showTransactionToast.error(
+        "Transaction failed",
+        writeError?.message || "Failed to submit transaction",
+      );
       setToastShown(false);
       currentTransactionRef.current = undefined;
       successHandledRef.current = false;
