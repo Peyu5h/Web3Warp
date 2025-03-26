@@ -1,15 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { ArrowLeft, Plus, Minus, RotateCcw } from "lucide-react";
 import {
   useAccount,
   useChainId,
-  useSwitchChain,
   useReadContract,
   useWriteContract,
-  useWaitForTransactionReceipt,
 } from "wagmi";
 import { sepolia } from "@reown/appkit/networks";
 import {
@@ -25,12 +23,12 @@ import { Badge } from "~/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Skeleton } from "~/components/ui/skeleton";
 import { counterAbi, getCounterAddress } from "~/lib/abi";
-import TransactionStatus from "~/components/TransactionStatus";
+import { useTransaction } from "~/lib/hooks/useTransaction";
+import { toast } from "sonner";
 
 export default function CounterPage() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
-  const [error, setError] = useState("");
 
   // Read the counter value
   const {
@@ -45,64 +43,67 @@ export default function CounterPage() {
   });
 
   // Write contract functions
-  const {
-    writeContract,
-    data: hash,
-    isPending,
-    reset,
-  } = useWriteContract({
-    mutation: {
-      onSuccess: () => setError(""),
-      onError: (error) => setError(error.message),
+  // const {
+  //   writeContract,
+  //   data: hash,
+  //   isPending,
+  //   reset,
+  // } = useWriteContract({
+  //   mutation: {
+  //     onSuccess: () => setError(""),
+  //     onError: (error) => setError(error.message)
+  //   }
+  // });
+
+  // Use transaction hook for contract writes
+  const transaction = useTransaction({
+    successMessage: "Counter updated successfully",
+    onSuccess: () => {
+      refetchCount();
     },
   });
-
-  // Wait for transaction receipt
-  const { isLoading: isConfirming, isSuccess: isConfirmed } =
-    useWaitForTransactionReceipt({
-      hash,
-      confirmations: 1,
-    });
 
   // Increment counter
   const handleIncrement = async () => {
     if (chainId !== sepolia.id) {
-      setError("Please switch to Sepolia network first");
+      toast.error("Please switch to Sepolia network first");
       return;
     }
 
     try {
-      writeContract({
+      await transaction.writeAsync({
         address: getCounterAddress(sepolia.id) as `0x${string}`,
         abi: counterAbi,
         functionName: "increment",
         chainId: sepolia.id,
+        _meta: {
+          successMessage: "Counter incremented successfully",
+        },
       });
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to increment counter",
-      );
+      console.error("Error incrementing counter:", err);
     }
   };
 
   // Decrement counter
   const handleDecrement = async () => {
     if (chainId !== sepolia.id) {
-      setError("Please switch to Sepolia network first");
+      toast.error("Please switch to Sepolia network first");
       return;
     }
 
     try {
-      writeContract({
+      await transaction.writeAsync({
         address: getCounterAddress(sepolia.id) as `0x${string}`,
         abi: counterAbi,
         functionName: "decrement",
         chainId: sepolia.id,
+        _meta: {
+          successMessage: "Counter decremented successfully",
+        },
       });
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to decrement counter",
-      );
+      console.error("Error decrementing counter:", err);
     }
   };
 
@@ -114,15 +115,15 @@ export default function CounterPage() {
   return (
     <div className="flex h-screen w-full items-center justify-center">
       <div className="container mx-auto w-full max-w-lg">
+        <Link
+          href="/"
+          className="text-muted-foreground hover:text-primary my-4 flex items-center"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Home
+        </Link>
         <Card>
           <CardHeader>
-            <Link
-              href="/"
-              className="text-muted-foreground hover:text-primary flex items-center"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Home
-            </Link>
             <CardTitle>Counter dApp</CardTitle>
             <CardDescription>
               A simple counter on Sepolia testnet
@@ -166,7 +167,7 @@ export default function CounterPage() {
                     variant="ghost"
                     size="icon"
                     onClick={handleRefresh}
-                    disabled={isPending || isConfirming}
+                    disabled={transaction.isPending || transaction.isConfirming}
                   >
                     <RotateCcw className="h-4 w-4" />
                   </Button>
@@ -176,7 +177,9 @@ export default function CounterPage() {
                   <Button
                     onClick={handleDecrement}
                     disabled={
-                      isPending || isConfirming || chainId !== sepolia.id
+                      transaction.isPending ||
+                      transaction.isConfirming ||
+                      chainId !== sepolia.id
                     }
                     variant="outline"
                     size="lg"
@@ -187,7 +190,9 @@ export default function CounterPage() {
                   <Button
                     onClick={handleIncrement}
                     disabled={
-                      isPending || isConfirming || chainId !== sepolia.id
+                      transaction.isPending ||
+                      transaction.isConfirming ||
+                      chainId !== sepolia.id
                     }
                     size="lg"
                   >
@@ -197,19 +202,14 @@ export default function CounterPage() {
                 </div>
               </div>
 
-              {error && (
+              {transaction.error && (
                 <Alert variant="destructive" className="mt-4">
                   <AlertTitle>Error</AlertTitle>
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>
+                    {transaction.error.message}
+                  </AlertDescription>
                 </Alert>
               )}
-
-              <TransactionStatus
-                hash={hash}
-                isPending={isPending}
-                isConfirming={isConfirming}
-                isConfirmed={isConfirmed}
-              />
             </>
           </CardContent>
 

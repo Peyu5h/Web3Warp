@@ -30,13 +30,20 @@ async function main() {
 
   // ----------------------------------------------------
 
-  // Deploy NFT Factory contract
-  const NFTFactory = await hre.ethers.getContractFactory("NFTFactory");
-  const nftFactory = await NFTFactory.deploy();
+  // const NFTFactory = await hre.ethers.getContractFactory("NFTFactory");
+  // const nftFactory = await NFTFactory.deploy();
 
-  await nftFactory.waitForDeployment();
-  const nftFactoryAddress = await nftFactory.getAddress();
-  console.log("NFTFactory deployed to:", nftFactoryAddress);
+  // await nftFactory.waitForDeployment();
+  // const nftFactoryAddress = await nftFactory.getAddress();
+  // console.log("NFTFactory deployed to:", nftFactoryAddress);
+
+  // ----------------------------------------------------
+  const Escrow = await hre.ethers.getContractFactory("Escrow");
+  const escrow = await Escrow.deploy();
+
+  await escrow.waitForDeployment();
+  const escrowAddress = await escrow.getAddress();
+  console.log("Escrow deployed to:", escrowAddress);
 }
 
 main()

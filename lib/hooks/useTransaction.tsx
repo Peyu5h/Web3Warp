@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { showTransactionToast } from "~/components/ui/transaction-toaster";
 import { toast } from "sonner";
+import { Abi } from "viem";
 
 interface UseTransactionOptions {
   /** Success message when transaction completes */
@@ -10,6 +11,20 @@ interface UseTransactionOptions {
   onSuccess?: (data: any) => void;
   /** Display regular toast errors instead of transaction toasts for validation errors */
   useRegularToastForErrors?: boolean;
+}
+
+interface BaseContractConfig {
+  address: `0x${string}`;
+  abi: Abi;
+  functionName: string;
+  args?: readonly unknown[];
+  [key: string]: unknown;
+}
+
+interface ExtendedContractConfig extends BaseContractConfig {
+  _meta?: {
+    successMessage?: string;
+  };
 }
 
 /**
@@ -34,7 +49,8 @@ interface UseTransactionOptions {
  *       address: tokenAddress,
  *       abi: erc20Abi,
  *       functionName: 'transfer',
- *       args: [recipient, amount]
+ *       args: [recipient, amount],
+ *       _meta: { successMessage: "Custom success message" } // Optional transaction-specific message
  *     });
  *   } catch (error) {
  *     // Error handling is done by the hook
@@ -50,12 +66,11 @@ export function useTransaction(options: UseTransactionOptions = {}) {
   } = options;
 
   const [toastShown, setToastShown] = useState(false);
-  // Track the current transaction hash to prevent duplicate toasts
+  const [currentSuccessMessage, setCurrentSuccessMessage] =
+    useState<string>(successMessage);
   const currentTransactionRef = useRef<`0x${string}` | undefined>(undefined);
-  // Track if success callback has been called for this transaction
   const successHandledRef = useRef(false);
 
-  // Write contract hook with error handling
   const {
     writeContractAsync,
     data: hash,
@@ -66,7 +81,6 @@ export function useTransaction(options: UseTransactionOptions = {}) {
     writeContract,
   } = useWriteContract();
 
-  // Transaction receipt hook to track confirmation
   const {
     isLoading: isConfirming,
     isSuccess,
@@ -77,7 +91,6 @@ export function useTransaction(options: UseTransactionOptions = {}) {
     hash,
   });
 
-  // Reset references when hash changes
   useEffect(() => {
     if (hash && hash !== currentTransactionRef.current) {
       currentTransactionRef.current = hash;
@@ -85,7 +98,6 @@ export function useTransaction(options: UseTransactionOptions = {}) {
     }
   }, [hash]);
 
-  // Track when the loading toast should be shown
   useEffect(() => {
     if (isPending && !toastShown) {
       showTransactionToast.loading(
@@ -96,9 +108,7 @@ export function useTransaction(options: UseTransactionOptions = {}) {
     }
   }, [isPending, toastShown]);
 
-  // Handle all transaction states in one effect
   useEffect(() => {
-    // Handle write contract errors
     if (isWriteError && writeError) {
       console.log("Transaction write error:", writeError);
 
@@ -112,7 +122,6 @@ export function useTransaction(options: UseTransactionOptions = {}) {
       resetWrite();
     }
 
-    // Handle transaction errors
     if (isTransactionError && transactionError) {
       console.log("Transaction error:", transactionError);
       showTransactionToast.error(
@@ -124,20 +133,18 @@ export function useTransaction(options: UseTransactionOptions = {}) {
       successHandledRef.current = false;
     }
 
-    // Handle successful transactions
     if (isSuccess && hash && !successHandledRef.current) {
       console.log("Transaction success, hash:", hash);
       successHandledRef.current = true;
 
-      // Show success toast with slight delay to ensure loading toast is dismissed
       setTimeout(() => {
-        showTransactionToast.success("Transaction successful", successMessage);
+        showTransactionToast.success(
+          "Transaction successful",
+          currentSuccessMessage || successMessage,
+        );
       }, 300);
 
-      // Reset toast state
       setToastShown(false);
-
-      // Call success callback if provided
       if (onSuccess && receipt) {
         onSuccess(receipt);
       }
@@ -151,26 +158,38 @@ export function useTransaction(options: UseTransactionOptions = {}) {
     hash,
     receipt,
     successMessage,
+    currentSuccessMessage,
     onSuccess,
     useRegularToastForErrors,
     resetWrite,
   ]);
 
-  // Create an async write function that returns a promise
-  const writeAsync = async (config: any) => {
+  const writeAsync = async (config: ExtendedContractConfig) => {
     try {
-      // Reset references for new transaction
+      const { _meta, ...contractConfig } = config;
+
+      if (_meta?.successMessage) {
+        setCurrentSuccessMessage(_meta.successMessage);
+      } else {
+        setCurrentSuccessMessage(successMessage);
+      }
+
       successHandledRef.current = false;
-      return await writeContractAsync(config);
+      return await writeContractAsync(contractConfig as any);
     } catch (error) {
-      // Error is already handled in the effect
       throw error;
     }
   };
 
-  // Shorthand function to write and show loading toast
-  const write = (config: any) => {
-    // Reset references for new transaction
+  const write = (config: ExtendedContractConfig) => {
+    const { _meta, ...contractConfig } = config;
+
+    if (_meta?.successMessage) {
+      setCurrentSuccessMessage(_meta.successMessage);
+    } else {
+      setCurrentSuccessMessage(successMessage);
+    }
+
     successHandledRef.current = false;
 
     showTransactionToast.loading(
@@ -178,31 +197,26 @@ export function useTransaction(options: UseTransactionOptions = {}) {
       "Please confirm in your wallet",
     );
     setToastShown(true);
-    writeContract(config);
+    writeContract(contractConfig as any);
   };
 
   return {
-    // Async write contract function (returns promise)
     writeAsync,
-    // Regular write function
     write,
-    // Current state
     isLoading: isPending || isConfirming,
     isPending,
     isConfirming,
     isSuccess,
     isError: isWriteError || isTransactionError,
-    // Data
     hash,
     receipt,
-    // Error info
     error: writeError || transactionError,
-    // Reset
     reset: () => {
       resetWrite();
       currentTransactionRef.current = undefined;
       successHandledRef.current = false;
       setToastShown(false);
+      setCurrentSuccessMessage(successMessage);
     },
   };
 }

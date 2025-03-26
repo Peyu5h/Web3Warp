@@ -19,6 +19,8 @@ import { erc20Abi, getErc20Address } from "~/lib/abi/erc20";
 import { sepolia } from "viem/chains";
 import { toast } from "sonner";
 import { useTransaction } from "~/lib/hooks/useTransaction";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 export default function TokenPage() {
   const { isConnected, address } = useAccount();
@@ -212,9 +214,16 @@ export default function TokenPage() {
 
   return (
     <div className="container mx-auto max-w-2xl px-4 py-10">
-      <div className="flex flex-col space-y-8">
-        <h1 className="text-3xl font-bold">SYNK Token</h1>
-
+      <div className="">
+        <Link
+          href="/"
+          className="text-muted-foreground hover:text-primary my-4 flex items-center"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Home
+        </Link>
+      </div>
+      <Card className="flex flex-col space-y-8 p-6">
         {isConnected ? (
           <Tabs
             value={activeTab}
@@ -434,7 +443,7 @@ export default function TokenPage() {
             </CardContent>
           </Card>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

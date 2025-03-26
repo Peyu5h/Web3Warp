@@ -3,12 +3,10 @@ import { handle } from "hono/vercel";
 import { cors } from "hono/cors";
 import userRoutes from "./routes/user.route";
 import nftRoutes from "./routes/nft.route";
-import indexRoute from "./routes";
 
 export const runtime = "nodejs";
-const app = new Hono();
+const app = new Hono().basePath("/api");
 
-// Add CORS middleware
 app.use(
   "*",
   cors({
@@ -20,9 +18,8 @@ app.use(
   }),
 );
 
-const routes = app.route("/api", indexRoute);
-
-export type AppType = typeof routes;
+app.route("/users", userRoutes);
+app.route("/nft", nftRoutes);
 
 export const GET = handle(app);
 export const POST = handle(app);
